@@ -1,0 +1,11 @@
+Host *
+  IdentitiesOnly yes
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+  IdentityFile ~/.ssh/{{ env_authorized_key }}.pem
+
+{% for host in groups['nodes'] | default([]) %}
+Host {{ host.split('.')[0] }}
+  HostName {{ host.split('.')[0] }}
+  User {{ vm_workload_field_content_ansible_user }}
+{% endfor %}

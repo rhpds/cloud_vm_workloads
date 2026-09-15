@@ -4,10 +4,8 @@ Fire-and-forget runner for RHEL Field Asset.
 
 == What it does
 
-. Writes a platform inventory and extra-vars on the bastion
-. Pulls the execution environment image
-. Starts `field-content.service` (`Type=simple`, `Restart=no`) which runs `podman run --network=host`
-. Waits until the container is **Running** (about one minute max)
+. Writes a platform inventory, extra-vars, and lab-user ssh config on the bastion
+. If a collection git repo was provided: pulls the EE, starts `field-content.service`, waits until the container is **Running**
 . Exits. Galaxy install and the author's playbook happen inside the container.
 
 Platform failures (empty/malformed URL, EE pull, inventory, unit, container never Running) fail the RHDP order.
