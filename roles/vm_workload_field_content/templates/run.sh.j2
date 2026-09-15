@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+IMAGE="{{ vm_workload_field_content_ee_image }}"
+DIR="{{ vm_workload_field_content_dir }}"
+
+podman rm -f field-content >/dev/null 2>&1 || true
+
+exec podman run \
+  --name field-content \
+  --network=host \
+  --security-opt label=disable \
+  -v "${DIR}/inventory:/inventory:ro" \
+  -v "${DIR}/extra-vars.yml:/extra-vars.yml:ro" \
+  -v "${DIR}/ssh:/ssh:ro" \
+  -v "${DIR}/run-in-ee.sh:/run-in-ee.sh:ro" \
+  --env-file "${DIR}/env" \
+  "${IMAGE}" \
+  /bin/bash /run-in-ee.sh

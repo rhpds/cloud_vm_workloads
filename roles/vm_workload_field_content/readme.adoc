@@ -1,0 +1,27 @@
+= vm_workload_field_content
+
+Fire-and-forget runner for RHEL Field Asset.
+
+== What it does
+
+. Writes a platform inventory and extra-vars on the bastion
+. Pulls the execution environment image
+. Starts `field-content.service` (`Type=simple`, `Restart=no`) which runs `podman run --network=host`
+. Waits until the container is **Running** (about one minute max)
+. Exits. Galaxy install and the author's playbook happen inside the container.
+
+Platform failures (empty/malformed URL, EE pull, inventory, unit, container never Running) fail the RHDP order.
+
+Author failures (404 repo, bad collection, missing playbook, task errors) do **not**.
+
+== Variables
+
+All variables are prefixed `vm_workload_field_content_`. See `defaults/main.yml`.
+
+== Watching the job
+
+....
+systemctl status field-content
+journalctl -u field-content -f
+podman logs -f field-content
+....

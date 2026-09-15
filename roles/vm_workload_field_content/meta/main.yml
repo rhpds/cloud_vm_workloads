@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  role_name: vm_workload_field_content
+  author: Red Hat, Nate Stephany (nstephan@redhat.com)
+  description: >
+    Fire-and-forget field content runner for cloud-vms-base.
+    Writes inventory, starts a Podman EE, and leaves. Does not wait
+    for the author's playbook to succeed.
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms: []
+  galaxy_tags:
+    - rhel
+    - fieldcontent
+dependencies: []

@@ -1,0 +1,15 @@
+[bastions]
+{% for host in groups['bastions'] | default([]) %}
+{{ host.split('.')[0] }} ansible_host={{ host }}
+{% endfor %}
+
+[nodes]
+{% for host in groups['nodes'] | default([]) %}
+{{ host.split('.')[0] }} ansible_host={{ host }}
+{% endfor %}
+
+[all:vars]
+ansible_user={{ vm_workload_field_content_ansible_user }}
+ansible_ssh_private_key_file=/ssh/id_rsa
+ansible_ssh_common_args=-o StrictHostKeyChecking=no
+ansible_become=true

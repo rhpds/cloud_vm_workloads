@@ -1,0 +1,55 @@
+#!/bin/bash
+# Runs inside the execution environment. Failures here are the author's
+# problem: the RHDP order already succeeded once this container was Running.
+set -euo pipefail
+
+COLLECTIONS=/opt/field-content-collections
+mkdir -p "${COLLECTIONS}"
+
+REPO="${GIT_REPO_URL:?GIT_REPO_URL is required}"
+REVISION="${GIT_REVISION:-main}"
+ENTRYPOINT="${PLAYBOOK_ENTRYPOINT:-playbooks/site.yml}"
+
+if [[ -n "${GIT_TOKEN:-}" ]]; then
+  REPO="$(echo "${REPO}" | sed "s#https://#https://x-access-token:${GIT_TOKEN}@#")"
+fi
+
+echo "=== Installing collection from ${GIT_REPO_URL} (${REVISION}) ==="
+ansible-galaxy collection install "git+${REPO},${REVISION}" -p "${COLLECTIONS}" --force
+
+COLL_DIR="$(find "${COLLECTIONS}/ansible_collections" -mindepth 2 -maxdepth 2 -type d | head -n 1)"
+if [[ -z "${COLL_DIR}" ]]; then
+  echo "ERROR: galaxy install did not produce a collection under ${COLLECTIONS}/ansible_collections"
+  exit 1
+fi
+
+echo "=== Collection directory: ${COLL_DIR} ==="
+
+if [[ -f "${COLL_DIR}/requirements.yml" ]]; then
+  echo "=== Installing collection requirements.yml ==="
+  ansible-galaxy install -r "${COLL_DIR}/requirements.yml" -p "${COLLECTIONS}" --force
+fi
+
+if [[ -f "${COLL_DIR}/playbooks/requirements.yml" ]]; then
+  echo "=== Installing playbooks/requirements.yml ==="
+  ansible-galaxy install -r "${COLL_DIR}/playbooks/requirements.yml" -p "${COLLECTIONS}" --force
+fi
+
+PLAYBOOK="${COLL_DIR}/${ENTRYPOINT}"
+if [[ ! -f "${PLAYBOOK}" ]]; then
+  echo "ERROR: playbook not found at ${PLAYBOOK}"
+  echo "Entrypoint is relative to the collection root. Example: playbooks/site.yml"
+  exit 1
+fi
+
+export ANSIBLE_COLLECTIONS_PATH="${COLLECTIONS}"
+export ANSIBLE_HOST_KEY_CHECKING=False
+export ANSIBLE_ROLES_PATH="${COLL_DIR}/roles:${ANSIBLE_ROLES_PATH:-}"
+
+echo "=== Running ${PLAYBOOK} ==="
+ansible-playbook \
+  -i /inventory \
+  -e @/extra-vars.yml \
+  "${PLAYBOOK}"
+
+echo "=== Field content playbook finished ==="

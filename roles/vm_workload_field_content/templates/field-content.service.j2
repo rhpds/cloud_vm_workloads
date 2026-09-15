@@ -1,0 +1,15 @@
+[Unit]
+Description=RHDP Field Content runner
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+Restart=no
+EnvironmentFile=-{{ vm_workload_field_content_dir }}/env
+ExecStart={{ vm_workload_field_content_dir }}/run.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
