@@ -98,8 +98,6 @@
   agnosticd.core.agnosticd_user_info:
     data:
       field_content_service: "{{ vm_workload_field_content_service_name }}"
-      field_content_logs: "journalctl -u {{ vm_workload_field_content_service_name }} -f"
-      field_content_podman_logs: "podman logs -f field-content"
       field_content_inventory: "{{ vm_workload_field_content_dir }}/inventory"
       field_content_git_repo: "{{ vm_workload_field_content_git_repo_url }}"
       field_content_playbook: "{{ vm_workload_field_content_playbook }}"
