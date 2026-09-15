@@ -1,0 +1,20 @@
+# Field content EE: ee-multicloud contents without the AgnosticD launch overlay.
+# The chained ee-multicloud entrypoint assumes ansible-navigator or AAP and
+# tries to run ./ansible/install_dynamic_dependencies.yml. This image keeps
+# the packages and collections and chain-execs the command we pass.
+ARG BASE_IMAGE=quay.io/agnosticd/ee-multicloud:chained-2026-08-05
+FROM ${BASE_IMAGE}
+
+ENV DESCRIPTION="Execution environment for RHDP RHEL Field Sourced Content"
+LABEL ansible-execution-environment=true \
+      name="rhpds/ee-field-content" \
+      maintainer="RHDP" \
+      description="${DESCRIPTION}" \
+      summary="${DESCRIPTION}"
+
+COPY entrypoint.sh /usr/local/bin/entrypoint
+RUN chmod 755 /usr/local/bin/entrypoint
+
+WORKDIR /runner
+ENTRYPOINT ["entrypoint"]
+CMD ["/bin/bash"]

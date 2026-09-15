@@ -12,8 +12,9 @@ vm_workload_field_content_playbook: playbooks/deploy.yml
 # Personal access token for private Git repos (empty = public)
 vm_workload_field_content_git_repo_key: ""
 
-# Execution environment used to run the author's playbook
-vm_workload_field_content_ee_image: quay.io/agnosticd/ee-multicloud:chained-2026-05-04
+# Execution environment used to run the author's playbook.
+# Wrapper around ee-multicloud with the AgnosticD entrypoint removed.
+vm_workload_field_content_ee_image: quay.io/rhpds/ee-field-content:latest
 
 # Where platform files live on the bastion
 vm_workload_field_content_dir: /opt/field-content

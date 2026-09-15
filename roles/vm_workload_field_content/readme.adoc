@@ -21,7 +21,7 @@ All variables are prefixed `vm_workload_field_content_`. See `defaults/main.yml`
 == Watching the job
 
 ....
-systemctl status field-content
-journalctl -u field-content -f
-podman logs -f field-content
+sudo systemctl status field-content
+sudo journalctl -u field-content -f
+sudo podman logs -f field-content
 ....

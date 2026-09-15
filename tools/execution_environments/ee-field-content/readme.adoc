@@ -1,0 +1,23 @@
+= ee-field-content
+
+Wrapper around `quay.io/agnosticd/ee-multicloud` for the RHEL Field Asset runner.
+
+Same packages and collections. Different launch: ansible-builder uid/homedir papering, then `exec` of the command. No `install_dynamic_dependencies.yml`, no AAP/navigator argument rewriting.
+
+== Build
+
+----
+podman build \
+  -t quay.io/rhpds/ee-field-content:latest \
+  tools/execution_environments/ee-field-content
+----
+
+Bump `BASE_IMAGE` in the Containerfile when you want a newer ee-multicloud.
+
+== Push
+
+----
+podman push quay.io/rhpds/ee-field-content:latest
+----
+
+The runner default is `quay.io/rhpds/ee-field-content:latest`.
