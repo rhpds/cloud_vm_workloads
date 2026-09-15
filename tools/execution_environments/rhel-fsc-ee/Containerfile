@@ -2,7 +2,8 @@
 # The chained ee-multicloud entrypoint assumes ansible-navigator or AAP and
 # tries to run ./ansible/install_dynamic_dependencies.yml. This image keeps
 # the packages and collections and chain-execs the command we pass.
-ARG BASE_IMAGE=quay.io/agnosticd/ee-multicloud:chained-2026-08-05
+# chained-2026-09-15 is Python 3.14.
+ARG BASE_IMAGE=quay.io/agnosticd/ee-multicloud:chained-2026-09-15
 FROM ${BASE_IMAGE}
 
 ENV DESCRIPTION="Execution environment for RHDP RHEL Field Sourced Content"
