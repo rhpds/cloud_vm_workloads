@@ -5,8 +5,9 @@ vm_workload_field_content_git_repo_url: ""
 # Git branch, tag, or commit
 vm_workload_field_content_git_repo_revision: main
 
-# Playbook path relative to the collection root
-vm_workload_field_content_playbook: playbooks/site.yml
+# Playbook path relative to the collection root. Authors name this file;
+# the catalog order form is how they tell the runner which path to use.
+vm_workload_field_content_playbook: playbooks/deploy.yml
 
 # Personal access token for private Git repos (empty = public)
 vm_workload_field_content_git_repo_key: ""

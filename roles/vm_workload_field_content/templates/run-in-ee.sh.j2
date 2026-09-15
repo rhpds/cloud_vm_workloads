@@ -8,7 +8,7 @@ mkdir -p "${COLLECTIONS}"
 
 REPO="${GIT_REPO_URL:?GIT_REPO_URL is required}"
 REVISION="${GIT_REVISION:-main}"
-ENTRYPOINT="${PLAYBOOK_ENTRYPOINT:-playbooks/site.yml}"
+ENTRYPOINT="${PLAYBOOK_ENTRYPOINT:-playbooks/deploy.yml}"
 
 if [[ -n "${GIT_TOKEN:-}" ]]; then
   REPO="$(echo "${REPO}" | sed "s#https://#https://x-access-token:${GIT_TOKEN}@#")"
@@ -38,7 +38,7 @@ fi
 PLAYBOOK="${COLL_DIR}/${ENTRYPOINT}"
 if [[ ! -f "${PLAYBOOK}" ]]; then
   echo "ERROR: playbook not found at ${PLAYBOOK}"
-  echo "Entrypoint is relative to the collection root. Example: playbooks/site.yml"
+  echo "Entrypoint is relative to the collection root (whatever path you entered on the order form)."
   exit 1
 fi
 
