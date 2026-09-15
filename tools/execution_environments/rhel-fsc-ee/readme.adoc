@@ -1,4 +1,4 @@
-= ee-field-content
+= rhel-fsc-ee
 
 Wrapper around `quay.io/agnosticd/ee-multicloud` for the RHEL Field Asset runner.
 
@@ -8,8 +8,8 @@ Same packages and collections. Different launch: ansible-builder uid/homedir pap
 
 ----
 podman build \
-  -t quay.io/rhpds/ee-field-content:latest \
-  tools/execution_environments/ee-field-content
+  -t quay.io/rhpds/rhel-fsc-ee:latest \
+  tools/execution_environments/rhel-fsc-ee
 ----
 
 Bump `BASE_IMAGE` in the Containerfile when you want a newer ee-multicloud.
@@ -17,7 +17,7 @@ Bump `BASE_IMAGE` in the Containerfile when you want a newer ee-multicloud.
 == Push
 
 ----
-podman push quay.io/rhpds/ee-field-content:latest
+podman push quay.io/rhpds/rhel-fsc-ee:latest
 ----
 
-The runner default is `quay.io/rhpds/ee-field-content:latest`.
+The runner default is `quay.io/rhpds/rhel-fsc-ee:latest`.

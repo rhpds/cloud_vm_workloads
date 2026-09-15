@@ -14,7 +14,7 @@ vm_workload_field_content_git_repo_key: ""
 
 # Execution environment used to run the author's playbook.
 # Wrapper around ee-multicloud with the AgnosticD entrypoint removed.
-vm_workload_field_content_ee_image: quay.io/rhpds/ee-field-content:latest
+vm_workload_field_content_ee_image: quay.io/rhpds/rhel-fsc-ee:latest
 
 # Where platform files live on the bastion
 vm_workload_field_content_dir: /opt/field-content

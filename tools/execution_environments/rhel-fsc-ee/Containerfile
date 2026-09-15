@@ -7,7 +7,7 @@ FROM ${BASE_IMAGE}
 
 ENV DESCRIPTION="Execution environment for RHDP RHEL Field Sourced Content"
 LABEL ansible-execution-environment=true \
-      name="rhpds/ee-field-content" \
+      name="rhpds/rhel-fsc-ee" \
       maintainer="RHDP" \
       description="${DESCRIPTION}" \
       summary="${DESCRIPTION}"
