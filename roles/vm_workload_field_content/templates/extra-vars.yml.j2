@@ -4,4 +4,4 @@ field_asset:
   node_count: {{ node_instance_count | default(1) | int }}
   node_size: "{{ node_size | default('medium') }}"
   rhel_version: "{{ rhel_version | default('rhel9') }}"
-  install_squid: {{ enable_squid | default(false) | bool }}
+  enable_bastion_proxy: {{ vm_workload_field_content_enable_bastion_proxy | default(false) | bool }}

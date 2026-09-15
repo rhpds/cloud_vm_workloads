@@ -32,3 +32,6 @@ vm_workload_field_content_running_delay: 10
 # Optional Showroom subdirectory inside the same git repo (empty = repo root)
 vm_workload_field_content_showroom_path: ""
 vm_workload_field_content_enable_showroom: false
+
+# Passed through to the author's playbook as field_asset.enable_bastion_proxy
+vm_workload_field_content_enable_bastion_proxy: false
