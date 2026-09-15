@@ -5,6 +5,8 @@ set -euo pipefail
 
 COLLECTIONS=/opt/field-content-collections
 mkdir -p "${COLLECTIONS}"
+export ANSIBLE_COLLECTIONS_PATH="${COLLECTIONS}"
+export ANSIBLE_HOST_KEY_CHECKING=False
 
 REPO="${GIT_REPO_URL:?GIT_REPO_URL is required}"
 REVISION="${GIT_REVISION:-main}"
@@ -42,8 +44,6 @@ if [[ ! -f "${PLAYBOOK}" ]]; then
   exit 1
 fi
 
-export ANSIBLE_COLLECTIONS_PATH="${COLLECTIONS}"
-export ANSIBLE_HOST_KEY_CHECKING=False
 export ANSIBLE_ROLES_PATH="${COLL_DIR}/roles:${ANSIBLE_ROLES_PATH:-}"
 
 echo "=== Running ${PLAYBOOK} ==="
