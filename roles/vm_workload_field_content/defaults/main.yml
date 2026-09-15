@@ -1,5 +1,8 @@
 ---
-# Required when the catalog enables existing_content
+# Order-form checkbox: attach a collection git repo
+vm_workload_field_content_existing_content: false
+
+# Required when vm_workload_field_content_existing_content is true
 vm_workload_field_content_git_repo_url: ""
 
 # Git branch, tag, or commit
