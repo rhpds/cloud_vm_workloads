@@ -1,27 +1,29 @@
 = rhel-fsc-ee
 
-Wrapper around `quay.io/agnosticd/ee-multicloud:chained-2026-09-15` (Python 3.14) for the RHEL Field Asset runner.
-
-Same packages and collections. Different launch: ansible-builder uid/homedir papering, then `exec` of the command. No `install_dynamic_dependencies.yml`, no AAP/navigator argument rewriting.
+Lightweight execution environment for the RHEL Field Sourced Content runner.
+Built from `ubi9/python-314` with only what FSC playbooks need.
+All collections install from Galaxy — no Automation Hub tokens required.
 
 == Build
 
-From the `cloud_vm_workloads` repo root. CNV bastions are amd64.
+From the `cloud_vm_workloads` repo root:
 
 ----
 podman build --platform linux/amd64 \
   -t quay.io/rhpds/rhel-fsc-ee:latest \
-  -t quay.io/rhpds/rhel-fsc-ee:chained-2026-09-15 \
   tools/execution_environments/rhel-fsc-ee
 ----
-
-Bump `BASE_IMAGE` in the Containerfile when you want a newer ee-multicloud.
 
 == Push
 
 ----
 podman push quay.io/rhpds/rhel-fsc-ee:latest
-podman push quay.io/rhpds/rhel-fsc-ee:chained-2026-09-15
 ----
 
-The runner default is `quay.io/rhpds/rhel-fsc-ee:latest`.
+== What's included
+
+* `ansible-core`, `ansible-runner`, `paramiko` (SSH)
+* AWS CLI + `boto3`
+* Collections: `ansible.posix`, `community.general`, `community.crypto`, `containers.podman`, `fedora.linux_system_roles`, `amazon.aws`
+
+Authors install additional collections at runtime via `requirements.yml` in their git repo.
