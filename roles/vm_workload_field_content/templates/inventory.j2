@@ -3,6 +3,9 @@
 {{ host.split('.')[0] }} ansible_host={{ host }}
 {% endfor %}
 
+[bastions:vars]
+ansible_connection=local
+
 [nodes]
 {% for host in groups['nodes'] | default([]) %}
 {{ host.split('.')[0] }} ansible_host={{ host }}
