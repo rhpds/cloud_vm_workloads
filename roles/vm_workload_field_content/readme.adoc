@@ -5,12 +5,37 @@ Fire-and-forget runner for RHEL Field Asset.
 == What it does
 
 . Writes a platform inventory, extra-vars, and lab-user ssh config on the bastion
+. Optionally installs Nginx as a reverse proxy on ports 8080/8443
 . If a collection git repo was provided: pulls the EE, starts `field-content.service`, waits until the container is **Running**
 . Exits. Galaxy install and the author's playbook happen inside the container.
 
 Platform failures (empty/malformed URL, EE pull, inventory, unit, container never Running) fail the RHDP order.
 
 Author failures (404 repo, bad collection, missing playbook, task errors) do **not**.
+
+== Bastion proxy
+
+When `vm_workload_field_content_enable_bastion_proxy` is true, the role installs Nginx with a server block on ports 8080 and 8443. The server block includes `/etc/nginx/proxy.d/*.conf`, which is empty by default. Author playbooks drop their own location configs into that directory to route traffic to services on the workload nodes, then reload Nginx with `nginx -s reload`.
+
+The catalog Routes provide external access:
+
+* `http://app-<guid>.<subdomain>` → bastion port 8080
+* `https://app-secure-<guid>.<subdomain>` → bastion port 8443 (edge TLS)
+
+== Extra-vars passed to the author's playbook
+
+[source,yaml]
+----
+guid: "<guid>"
+subdomain: "<apps domain>"
+field_asset:
+  node_count: <int>
+  node_size: "<small|medium|large>"
+  rhel_version: "<rhel9|rhel10>"
+  enable_bastion_proxy: <bool>
+  route_app: "app-<guid>.<subdomain>"
+  route_app_secure: "app-secure-<guid>.<subdomain>"
+----
 
 == Variables
 
