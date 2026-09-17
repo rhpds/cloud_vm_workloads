@@ -1,0 +1,91 @@
+---
+- name: Install nginx
+  ansible.builtin.package:
+    name: nginx
+    state: present
+
+- name: Allow nginx to connect to backend services
+  ansible.posix.seboolean:
+    name: httpd_can_network_connect
+    state: true
+    persistent: true
+
+- name: Label port 8080 for httpd
+  ansible.builtin.command:
+    argv:
+      - semanage
+      - port
+      - -a
+      - -t
+      - http_port_t
+      - -p
+      - tcp
+      - "8080"
+  register: r_semanage_8080
+  failed_when:
+    - r_semanage_8080.rc != 0
+    - "'already defined' not in (r_semanage_8080.stderr | default(''))"
+  changed_when: r_semanage_8080.rc == 0
+
+- name: Write nginx.conf
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    mode: "0644"
+
+- name: Ensure proxy.d directory exists
+  ansible.builtin.file:
+    path: /etc/nginx/proxy.d
+    state: directory
+    mode: "0755"
+
+- name: Write bastion proxy server block
+  ansible.builtin.template:
+    src: bastion-proxy.conf.j2
+    dest: /etc/nginx/conf.d/bastion-proxy.conf
+    mode: "0644"
+
+- name: Remove default nginx config
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/default.conf
+    state: absent
+
+- name: Start and enable nginx
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+
+- name: Check whether firewalld is running
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - firewalld
+  register: r_firewalld
+  changed_when: false
+  failed_when: false
+
+- name: Open proxy ports in firewalld
+  when: r_firewalld.rc == 0
+  block:
+    - name: Add ports 8080 and 8443
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - --add-port={{ item }}/tcp
+      loop:
+        - 8080
+        - 8443
+      register: r_fw
+      failed_when: false
+      changed_when: "'ALREADY_ENABLED' not in (r_fw.stdout | default(''))"
+
+    - name: Reload firewalld
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --reload
+      when: r_fw.results | selectattr('changed') | list | length > 0
+      changed_when: true

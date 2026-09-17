@@ -48,6 +48,10 @@
     data:
       field_content_inventory: "{{ vm_workload_field_content_dir }}/inventory"
 
+- name: Set up bastion reverse proxy (nginx)
+  when: vm_workload_field_content_enable_bastion_proxy | bool
+  ansible.builtin.include_tasks: setup_proxy.yml
+
 - name: Start the field-content runner when a collection git repo was provided
   when: vm_workload_field_content_git_repo_url | default('') | length > 0
   ansible.builtin.include_tasks: start_runner.yml

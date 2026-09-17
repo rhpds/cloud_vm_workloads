@@ -1,0 +1,15 @@
+server {
+    listen 8080;
+    listen 8443;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Author-managed reverse proxy locations
+    include /etc/nginx/proxy.d/*.conf;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
