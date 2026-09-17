@@ -1,0 +1,67 @@
+---
+- name: Validate field content repository URL is http(s)
+  ansible.builtin.assert:
+    that:
+      - vm_workload_field_content_git_repo_url is match('^https?://')
+    fail_msg: >-
+      vm_workload_field_content_git_repo_url must be an http(s) URL,
+      got: {{ vm_workload_field_content_git_repo_url }}
+
+- name: Write runner environment file
+  ansible.builtin.copy:
+    dest: "{{ vm_workload_field_content_dir }}/env"
+    mode: "0600"
+    content: |
+      GIT_REPO_URL={{ vm_workload_field_content_git_repo_url }}
+      GIT_REVISION={{ vm_workload_field_content_git_repo_revision }}
+      PLAYBOOK_ENTRYPOINT={{ vm_workload_field_content_playbook }}
+      {% if vm_workload_field_content_git_repo_key | default('') | length > 0 %}
+      GIT_TOKEN={{ vm_workload_field_content_git_repo_key }}
+      {% endif %}
+
+- name: Write runner scripts
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ vm_workload_field_content_dir }}/{{ item.dest }}"
+    mode: "0755"
+  loop:
+    - src: run.sh.j2
+      dest: run.sh
+    - src: run-in-ee.sh.j2
+      dest: run-in-ee.sh
+
+- name: Write field-content systemd unit
+  ansible.builtin.template:
+    src: field-content.service.j2
+    dest: /etc/systemd/system/{{ vm_workload_field_content_service_name }}.service
+    mode: "0644"
+
+- name: Pull field content execution environment
+  ansible.builtin.command:
+    cmd: podman pull {{ vm_workload_field_content_ee_image }}
+  register: r_ee_pull
+  changed_when: r_ee_pull.rc == 0
+
+- name: Reload systemd and start field-content
+  ansible.builtin.systemd:
+    name: "{{ vm_workload_field_content_service_name }}"
+    state: restarted
+    enabled: true
+    daemon_reload: true
+
+- name: Wait until the field-content container is running
+  ansible.builtin.command:
+    cmd: podman inspect -f {% raw %}'{{.State.Running}}'{% endraw %} field-content
+  register: r_field_content_running
+  retries: "{{ vm_workload_field_content_running_retries | int }}"
+  delay: "{{ vm_workload_field_content_running_delay | int }}"
+  until: r_field_content_running.stdout | trim == "true"
+  changed_when: false
+  failed_when: r_field_content_running.stdout | default('') | trim != "true"
+
+- name: Record field-content runner user info
+  agnosticd.core.agnosticd_user_info:
+    data:
+      field_content_service: "{{ vm_workload_field_content_service_name }}"
+      field_content_git_repo: "{{ vm_workload_field_content_git_repo_url }}"
+      field_content_playbook: "{{ vm_workload_field_content_playbook }}"

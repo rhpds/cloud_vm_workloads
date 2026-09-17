@@ -1,0 +1,10 @@
+---
+guid: "{{ guid }}"
+subdomain: "{{ subdomain }}"
+field_asset:
+  node_count: {{ node_instance_count | default(1) | int }}
+  node_size: "{{ node_size | default('medium') }}"
+  rhel_version: "{{ rhel_version | default('rhel9') }}"
+  enable_bastion_proxy: {{ vm_workload_field_content_enable_bastion_proxy | default(false) | bool }}
+  route_app: "app-{{ guid }}.{{ subdomain }}"
+  route_app_secure: "app-secure-{{ guid }}.{{ subdomain }}"

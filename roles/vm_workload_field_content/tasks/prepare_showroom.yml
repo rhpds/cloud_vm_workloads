@@ -1,0 +1,57 @@
+---
+# Clone the author's repo and copy the Showroom project (site.yml + content/)
+# out to a local git repo so vm_workload_showroom can consume it. A 404 here
+# fails the order on purpose: they asked for Showroom from this repo.
+
+- name: Set git URL for Showroom clone
+  ansible.builtin.set_fact:
+    _vm_workload_field_content_showroom_git_url: >-
+      {{
+        vm_workload_field_content_git_repo_url
+        | regex_replace('^https://', 'https://x-access-token:' ~ vm_workload_field_content_git_repo_key ~ '@')
+        if (vm_workload_field_content_git_repo_key | default('') | length > 0)
+        else vm_workload_field_content_git_repo_url
+      }}
+
+- name: Clone field content repo for Showroom
+  ansible.builtin.git:
+    repo: "{{ _vm_workload_field_content_showroom_git_url }}"
+    dest: "{{ vm_workload_field_content_dir }}/src"
+    version: "{{ vm_workload_field_content_git_repo_revision }}"
+    force: true
+
+- name: Find Showroom project root
+  ansible.builtin.stat:
+    path: "{{ vm_workload_field_content_dir }}/src/{{ vm_workload_field_content_showroom_path }}"
+  register: r_showroom_path
+
+- name: Fail when Showroom path does not exist in the repo
+  ansible.builtin.fail:
+    msg: >-
+      Showroom path '{{ vm_workload_field_content_showroom_path }}' was not found
+      in {{ vm_workload_field_content_git_repo_url }}
+  when: not r_showroom_path.stat.exists
+
+- name: Ensure Showroom stage directory exists
+  ansible.builtin.file:
+    path: "{{ vm_workload_field_content_dir }}/showroom-content"
+    state: directory
+    mode: "0755"
+
+- name: Copy Showroom project into stage directory
+  ansible.builtin.command:
+    cmd: >-
+      cp -a
+      {{ vm_workload_field_content_dir }}/src/{{ vm_workload_field_content_showroom_path }}/.
+      {{ vm_workload_field_content_dir }}/showroom-content/
+  changed_when: true
+
+- name: Initialize a local git repo for the staged Showroom content
+  ansible.builtin.shell: |
+    set -euo pipefail
+    cd {{ vm_workload_field_content_dir }}/showroom-content
+    git init
+    git add -A
+    git -c user.email=field-content@localhost -c user.name=field-content commit -m "showroom" --allow-empty
+  args:
+    creates: "{{ vm_workload_field_content_dir }}/showroom-content/.git"

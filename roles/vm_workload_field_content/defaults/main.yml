@@ -1,0 +1,40 @@
+---
+# Order-form checkbox: attach a collection git repo
+vm_workload_field_content_existing_content: false
+
+# Required when vm_workload_field_content_existing_content is true
+vm_workload_field_content_git_repo_url: ""
+
+# Git branch, tag, or commit
+vm_workload_field_content_git_repo_revision: main
+
+# Playbook path relative to the collection root. Authors name this file;
+# the catalog order form is how they tell the runner which path to use.
+vm_workload_field_content_playbook: playbooks/deploy.yml
+
+# Personal access token for private Git repos (empty = public)
+vm_workload_field_content_git_repo_key: ""
+
+# Execution environment used to run the author's playbook.
+# Wrapper around ee-multicloud with the AgnosticD entrypoint removed.
+vm_workload_field_content_ee_image: quay.io/rhpds/rhel-fsc-ee:latest
+
+# Where platform files live on the bastion
+vm_workload_field_content_dir: /opt/field-content
+
+# SSH user the EE uses to reach nodes (CNV cloud-user)
+vm_workload_field_content_ansible_user: cloud-user
+
+# systemd unit name
+vm_workload_field_content_service_name: field-content
+
+# Handoff: wait until the container is Running, do not wait for the playbook
+vm_workload_field_content_running_retries: 6
+vm_workload_field_content_running_delay: 10
+
+# Optional Showroom subdirectory inside the same git repo (empty = repo root)
+vm_workload_field_content_showroom_path: ""
+vm_workload_field_content_enable_showroom: false
+
+# Passed through to the author's playbook as field_asset.enable_bastion_proxy
+vm_workload_field_content_enable_bastion_proxy: false

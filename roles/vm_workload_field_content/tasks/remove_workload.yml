@@ -1,0 +1,13 @@
+---
+- name: Stop field-content service
+  ansible.builtin.systemd:
+    name: "{{ vm_workload_field_content_service_name }}"
+    state: stopped
+    enabled: false
+  failed_when: false
+
+- name: Remove field-content container
+  ansible.builtin.command:
+    cmd: podman rm -f field-content
+  failed_when: false
+  changed_when: true

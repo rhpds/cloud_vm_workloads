@@ -1,0 +1,79 @@
+# Standalone EE for RHEL Field Sourced Content.
+# Replaces the ee-multicloud chain (5.8 GB) with only what FSC playbooks need.
+ARG EE_BASE_IMAGE="registry.access.redhat.com/ubi9/python-314:latest"
+
+# ---- base: system packages + pip ----
+FROM $EE_BASE_IMAGE AS base
+
+USER root
+WORKDIR /root
+
+RUN dnf install -y \
+        git \
+        jq \
+        openssh-clients \
+        sshpass \
+        unzip \
+    && dnf clean all
+
+RUN pip install --no-cache-dir --upgrade pip
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# ---- galaxy: install collections from Galaxy (no Hub tokens needed) ----
+FROM base AS galaxy
+
+COPY requirements.yml /tmp/requirements.yml
+
+RUN for i in 1 2 3; do \
+      ansible-galaxy collection install -vv --no-cache \
+        -r /tmp/requirements.yml \
+        --collections-path "/usr/share/ansible/collections" && break || \
+      { echo "Attempt $i failed, retrying..."; sleep 5; }; \
+    done
+
+# ---- final ----
+FROM base AS final
+
+ENV DESCRIPTION="Lightweight execution environment for RHDP RHEL Field Sourced Content"
+LABEL ansible-execution-environment=true \
+      name="rhpds/rhel-fsc-ee" \
+      maintainer="RHDP" \
+      description="${DESCRIPTION}" \
+      summary="${DESCRIPTION}"
+
+COPY --from=galaxy /usr/share/ansible /usr/share/ansible
+
+# AWS CLI
+RUN curl -sL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp/awscliv2.zip \
+    && unzip -q /tmp/awscliv2.zip -d /tmp \
+    && /tmp/aws/install \
+    && rm -rf /tmp/aws /tmp/awscliv2.zip
+
+RUN rm -rf /tmp/* /root/.cache /root/*
+
+RUN for dir in \
+      /home/runner/.ansible \
+      /home/runner/.ansible/tmp \
+      /home/runner \
+      /runner/env \
+      /runner/inventory \
+      /runner/project \
+      /runner/artifacts \
+      /runner ; \
+    do mkdir -m 0775 -p $dir ; chmod -R g+rwx $dir ; chgrp -R root $dir ; done && \
+    for file in \
+      /home/runner/.ansible/galaxy_token \
+      /etc/passwd \
+      /etc/group ; \
+    do touch $file ; chmod g+rw $file ; chgrp root $file ; done
+
+ENV HOME=/home/runner
+
+COPY entrypoint.sh /usr/local/bin/entrypoint
+RUN chmod 755 /usr/local/bin/entrypoint
+
+WORKDIR /runner
+
+ENTRYPOINT ["entrypoint"]
+CMD ["/bin/bash"]

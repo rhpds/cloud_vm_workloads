@@ -1,0 +1,63 @@
+---
+- name: Create field-content directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ vm_workload_field_content_dir }}"
+    - "{{ vm_workload_field_content_dir }}/ssh"
+
+- name: Write platform inventory
+  ansible.builtin.template:
+    src: inventory.j2
+    dest: "{{ vm_workload_field_content_dir }}/inventory"
+    mode: "0644"
+
+- name: Write platform extra-vars
+  ansible.builtin.template:
+    src: extra-vars.yml.j2
+    dest: "{{ vm_workload_field_content_dir }}/extra-vars.yml"
+    mode: "0644"
+
+- name: Copy provision SSH key for the execution environment
+  ansible.builtin.copy:
+    src: >-
+      {{ hostvars.localhost.ssh_provision_key_path
+       | default(hostvars.localhost.env_authorized_key_path)
+      }}
+    dest: "{{ vm_workload_field_content_dir }}/ssh/id_rsa"
+    mode: "0400"
+
+- name: Ensure lab-user .ssh exists
+  ansible.builtin.file:
+    path: "/home/{{ student_name | default('lab-user') }}/.ssh"
+    state: directory
+    owner: "{{ student_name | default('lab-user') }}"
+    mode: "0700"
+
+- name: Write lab-user ssh config for workload nodes
+  ansible.builtin.template:
+    src: ssh_config.j2
+    dest: "/home/{{ student_name | default('lab-user') }}/.ssh/config"
+    owner: "{{ student_name | default('lab-user') }}"
+    mode: "0600"
+
+- name: Record inventory user info
+  agnosticd.core.agnosticd_user_info:
+    data:
+      field_content_inventory: "{{ vm_workload_field_content_dir }}/inventory"
+
+- name: Set up bastion reverse proxy (nginx)
+  when: vm_workload_field_content_enable_bastion_proxy | bool
+  ansible.builtin.include_tasks: setup_proxy.yml
+
+- name: Start the field-content runner when a collection git repo was provided
+  when: vm_workload_field_content_git_repo_url | default('') | length > 0
+  ansible.builtin.include_tasks: start_runner.yml
+
+- name: Prepare Showroom content from a subdirectory of the collection repo
+  when:
+    - vm_workload_field_content_enable_showroom | bool
+    - vm_workload_field_content_showroom_path | default('') | length > 0
+  ansible.builtin.include_tasks: prepare_showroom.yml
