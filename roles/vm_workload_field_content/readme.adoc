@@ -6,12 +6,13 @@ Fire-and-forget runner for RHEL Field Asset.
 
 . Writes a platform inventory, extra-vars, and lab-user ssh config on the bastion
 . Optionally installs Nginx as a reverse proxy on ports 8080/8443
-. If a collection git repo was provided: pulls the EE, starts `field-content.service`, waits until the container is **Running**
+. If a collection git repo was provided: pulls the EE, starts `field-content.service`, waits until the container **exists**
+. If Showroom is enabled: clones the repo and stages the Showroom project (repo root or `showroom_path`) as a local git repo
 . Exits. Galaxy install and the author's playbook happen inside the container.
 
-Platform failures (empty/malformed URL, EE pull, inventory, unit, container never Running) fail the RHDP order.
+Platform failures (EE pull, inventory, unit, container never created) fail the RHDP order.
 
-Author failures (404 repo, bad collection, missing playbook, task errors) do **not**.
+Author failures (malformed URL, 404 repo, bad token, bad collection, missing playbook or Showroom path, task errors) do **not**. The order completes so the author can log in and read the runner logs.
 
 == Bastion proxy
 

@@ -28,7 +28,7 @@ vm_workload_field_content_ansible_user: cloud-user
 # systemd unit name
 vm_workload_field_content_service_name: field-content
 
-# Handoff: wait until the container is Running, do not wait for the playbook
+# Handoff: wait until the container exists, do not wait for the playbook
 vm_workload_field_content_running_retries: 6
 vm_workload_field_content_running_delay: 10
 
