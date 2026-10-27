@@ -1,11 +1,13 @@
 ---
-- name: Validate field content repository URL is http(s)
-  ansible.builtin.assert:
-    that:
-      - vm_workload_field_content_git_repo_url is match('^https?://')
-    fail_msg: >-
-      vm_workload_field_content_git_repo_url must be an http(s) URL,
-      got: {{ vm_workload_field_content_git_repo_url }}
+# The URL comes from the order form. Warn instead of failing so the order
+# completes and the author can debug the runner on the bastion.
+- name: Warn when field content repository URL is not http(s)
+  when: vm_workload_field_content_git_repo_url is not match('^https?://')
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: vm_workload_field_content_git_repo_url should be an http(s) URL,
+      got: {{ vm_workload_field_content_git_repo_url }}. The runner will start
+      anyway; check its logs on the bastion.
 
 - name: Write runner environment file
   ansible.builtin.copy:
@@ -49,15 +51,17 @@
     enabled: true
     daemon_reload: true
 
-- name: Wait until the field-content container is running
+# Handoff check: the container was created. run.sh does not use --rm, so a
+# container that already exited (bad repo, token, or playbook path) still
+# exists. Whether it is still running does not fail the order.
+- name: Wait until the field-content container exists
   ansible.builtin.command:
-    cmd: podman inspect -f {% raw %}'{{.State.Running}}'{% endraw %} field-content
-  register: r_field_content_running
+    cmd: podman container exists field-content
+  register: r_field_content_container
   retries: "{{ vm_workload_field_content_running_retries | int }}"
   delay: "{{ vm_workload_field_content_running_delay | int }}"
-  until: r_field_content_running.stdout | trim == "true"
+  until: r_field_content_container.rc == 0
   changed_when: false
-  failed_when: r_field_content_running.stdout | default('') | trim != "true"
 
 - name: Record field-content runner user info
   agnosticd.core.agnosticd_user_info:

@@ -4,63 +4,75 @@
 # lives in vm_workload_field_content_showroom_path, or at the repo root when
 # that is empty. Staging always happens here so the private repo token is
 # applied in one place and vm_workload_showroom never needs credentials.
-# A 404 here fails the order on purpose: they asked for Showroom from this repo.
+# A bad repo, token, or path is the author's problem: warn and continue so the
+# order completes. vm_workload_showroom then fails on the missing content and
+# is expected to tolerate that.
 
-- name: Set git URL for Showroom clone
-  ansible.builtin.set_fact:
-    _vm_workload_field_content_showroom_git_url: >-
-      {{
-        vm_workload_field_content_git_repo_url
-        | regex_replace('^https://', 'https://x-access-token:' ~ vm_workload_field_content_git_repo_key ~ '@')
-        if (vm_workload_field_content_git_repo_key | default('') | length > 0)
-        else vm_workload_field_content_git_repo_url
-      }}
+- name: Stage Showroom content
+  block:
+    # The token goes in an HTTP auth header through environment config, not
+    # the URL, so it is not written to src/.git/config or task output.
+    - name: Clone field content repo for Showroom
+      ansible.builtin.git:
+        repo: "{{ vm_workload_field_content_git_repo_url }}"
+        dest: "{{ vm_workload_field_content_dir }}/src"
+        version: "{{ vm_workload_field_content_git_repo_revision }}"
+        force: true
+      environment:
+        GIT_TERMINAL_PROMPT: "0"
+        GIT_CONFIG_COUNT: "{{ '1' if (vm_workload_field_content_git_repo_key | default('') | length > 0) else '0' }}"
+        GIT_CONFIG_KEY_0: >-
+          http.{{ vm_workload_field_content_git_repo_url | regex_replace('^(https?://[^/]+).*$', '\1') }}/.extraheader
+        GIT_CONFIG_VALUE_0: >-
+          Authorization: Basic {{ ('x-access-token:' ~ vm_workload_field_content_git_repo_key | default('')) | b64encode }}
 
-- name: Clone field content repo for Showroom
-  ansible.builtin.git:
-    repo: "{{ _vm_workload_field_content_showroom_git_url }}"
-    dest: "{{ vm_workload_field_content_dir }}/src"
-    version: "{{ vm_workload_field_content_git_repo_revision }}"
-    force: true
+    - name: Set Showroom project directory within the repo
+      ansible.builtin.set_fact:
+        _vm_workload_field_content_showroom_src: >-
+          {{ vm_workload_field_content_dir }}/src/{{ vm_workload_field_content_showroom_path | default('', true) }}
 
-- name: Set Showroom project directory within the repo
-  ansible.builtin.set_fact:
-    _vm_workload_field_content_showroom_src: >-
-      {{ vm_workload_field_content_dir }}/src/{{ vm_workload_field_content_showroom_path | default('', true) }}
+    - name: Find Showroom project root
+      ansible.builtin.stat:
+        path: "{{ _vm_workload_field_content_showroom_src }}"
+      register: r_showroom_path
 
-- name: Find Showroom project root
-  ansible.builtin.stat:
-    path: "{{ _vm_workload_field_content_showroom_src }}"
-  register: r_showroom_path
+    - name: Fail when Showroom path does not exist in the repo
+      ansible.builtin.fail:
+        msg: >-
+          Showroom path '{{ vm_workload_field_content_showroom_path | default('', true) }}' was not found
+          in {{ vm_workload_field_content_git_repo_url }}
+      when: not r_showroom_path.stat.exists
 
-- name: Fail when Showroom path does not exist in the repo
-  ansible.builtin.fail:
-    msg: >-
-      Showroom path '{{ vm_workload_field_content_showroom_path | default('', true) }}' was not found
-      in {{ vm_workload_field_content_git_repo_url }}
-  when: not r_showroom_path.stat.exists
+    - name: Ensure Showroom stage directory exists
+      ansible.builtin.file:
+        path: "{{ vm_workload_field_content_dir }}/showroom-content"
+        state: directory
+        mode: "0755"
 
-- name: Ensure Showroom stage directory exists
-  ansible.builtin.file:
-    path: "{{ vm_workload_field_content_dir }}/showroom-content"
-    state: directory
-    mode: "0755"
+    # Exclude .git so the clone's remote URL (which embeds the token) is not copied
+    # and the stage directory gets its own fresh repo below.
+    - name: Copy Showroom project into stage directory
+      ansible.builtin.shell: |
+        set -euo pipefail
+        tar -C "{{ _vm_workload_field_content_showroom_src }}" --exclude=.git -cf - . \
+          | tar -C "{{ vm_workload_field_content_dir }}/showroom-content" -xf -
+      changed_when: true
 
-# Exclude .git so the clone's remote URL (which embeds the token) is not copied
-# and the stage directory gets its own fresh repo below.
-- name: Copy Showroom project into stage directory
-  ansible.builtin.shell: |
-    set -euo pipefail
-    tar -C "{{ _vm_workload_field_content_showroom_src }}" --exclude=.git -cf - . \
-      | tar -C "{{ vm_workload_field_content_dir }}/showroom-content" -xf -
-  changed_when: true
+    - name: Initialize a local git repo for the staged Showroom content
+      ansible.builtin.shell: |
+        set -euo pipefail
+        cd {{ vm_workload_field_content_dir }}/showroom-content
+        git init
+        git add -A
+        git -c user.email=field-content@localhost -c user.name=field-content commit -m "showroom" --allow-empty
+      args:
+        creates: "{{ vm_workload_field_content_dir }}/showroom-content/.git"
 
-- name: Initialize a local git repo for the staged Showroom content
-  ansible.builtin.shell: |
-    set -euo pipefail
-    cd {{ vm_workload_field_content_dir }}/showroom-content
-    git init
-    git add -A
-    git -c user.email=field-content@localhost -c user.name=field-content commit -m "showroom" --allow-empty
-  args:
-    creates: "{{ vm_workload_field_content_dir }}/showroom-content/.git"
+  rescue:
+    - name: Warn that Showroom content could not be staged
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Showroom content could not be staged from
+          {{ vm_workload_field_content_git_repo_url }}
+          ({{ vm_workload_field_content_git_repo_revision }}):
+          {{ ansible_failed_result.msg | default('unknown error') }}
