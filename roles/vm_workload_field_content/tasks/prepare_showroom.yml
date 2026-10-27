@@ -1,7 +1,10 @@
 ---
 # Clone the author's repo and copy the Showroom project (site.yml + content/)
-# out to a local git repo so vm_workload_showroom can consume it. A 404 here
-# fails the order on purpose: they asked for Showroom from this repo.
+# out to a local git repo so vm_workload_showroom can consume it. The project
+# lives in vm_workload_field_content_showroom_path, or at the repo root when
+# that is empty. Staging always happens here so the private repo token is
+# applied in one place and vm_workload_showroom never needs credentials.
+# A 404 here fails the order on purpose: they asked for Showroom from this repo.
 
 - name: Set git URL for Showroom clone
   ansible.builtin.set_fact:
@@ -20,15 +23,20 @@
     version: "{{ vm_workload_field_content_git_repo_revision }}"
     force: true
 
+- name: Set Showroom project directory within the repo
+  ansible.builtin.set_fact:
+    _vm_workload_field_content_showroom_src: >-
+      {{ vm_workload_field_content_dir }}/src/{{ vm_workload_field_content_showroom_path | default('', true) }}
+
 - name: Find Showroom project root
   ansible.builtin.stat:
-    path: "{{ vm_workload_field_content_dir }}/src/{{ vm_workload_field_content_showroom_path }}"
+    path: "{{ _vm_workload_field_content_showroom_src }}"
   register: r_showroom_path
 
 - name: Fail when Showroom path does not exist in the repo
   ansible.builtin.fail:
     msg: >-
-      Showroom path '{{ vm_workload_field_content_showroom_path }}' was not found
+      Showroom path '{{ vm_workload_field_content_showroom_path | default('', true) }}' was not found
       in {{ vm_workload_field_content_git_repo_url }}
   when: not r_showroom_path.stat.exists
 
@@ -38,12 +46,13 @@
     state: directory
     mode: "0755"
 
+# Exclude .git so the clone's remote URL (which embeds the token) is not copied
+# and the stage directory gets its own fresh repo below.
 - name: Copy Showroom project into stage directory
-  ansible.builtin.command:
-    cmd: >-
-      cp -a
-      {{ vm_workload_field_content_dir }}/src/{{ vm_workload_field_content_showroom_path }}/.
-      {{ vm_workload_field_content_dir }}/showroom-content/
+  ansible.builtin.shell: |
+    set -euo pipefail
+    tar -C "{{ _vm_workload_field_content_showroom_src }}" --exclude=.git -cf - . \
+      | tar -C "{{ vm_workload_field_content_dir }}/showroom-content" -xf -
   changed_when: true
 
 - name: Initialize a local git repo for the staged Showroom content

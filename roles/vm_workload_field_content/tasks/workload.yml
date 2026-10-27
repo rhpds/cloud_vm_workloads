@@ -56,8 +56,8 @@
   when: vm_workload_field_content_git_repo_url | default('') | length > 0
   ansible.builtin.include_tasks: start_runner.yml
 
-- name: Prepare Showroom content from a subdirectory of the collection repo
+- name: Prepare Showroom content from the collection repo (root or subdirectory)
   when:
     - vm_workload_field_content_enable_showroom | bool
-    - vm_workload_field_content_showroom_path | default('') | length > 0
+    - vm_workload_field_content_git_repo_url | default('') | length > 0
   ansible.builtin.include_tasks: prepare_showroom.yml
