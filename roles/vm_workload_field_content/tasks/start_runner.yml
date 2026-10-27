@@ -53,10 +53,10 @@
 
 # Handoff check: the container was created. run.sh does not use --rm, so a
 # container that already exited (bad repo, token, or playbook path) still
-# exists. Its state is reported but does not fail the order.
+# exists. Whether it is still running does not fail the order.
 - name: Wait until the field-content container exists
   ansible.builtin.command:
-    cmd: podman inspect -f {% raw %}'{{.State.Status}}'{% endraw %} field-content
+    cmd: podman container exists field-content
   register: r_field_content_container
   retries: "{{ vm_workload_field_content_running_retries | int }}"
   delay: "{{ vm_workload_field_content_running_delay | int }}"
@@ -65,12 +65,6 @@
 
 - name: Record field-content runner user info
   agnosticd.core.agnosticd_user_info:
-    msg:
-      - >-
-        Field content runner container state at handoff:
-        {{ r_field_content_container.stdout | trim }}.
-        Check its logs on the bastion with
-        'sudo journalctl -u {{ vm_workload_field_content_service_name }}'.
     data:
       field_content_service: "{{ vm_workload_field_content_service_name }}"
       field_content_git_repo: "{{ vm_workload_field_content_git_repo_url }}"

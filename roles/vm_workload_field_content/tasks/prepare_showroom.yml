@@ -10,24 +10,21 @@
 
 - name: Stage Showroom content
   block:
-    - name: Set git URL for Showroom clone
-      ansible.builtin.set_fact:
-        _vm_workload_field_content_showroom_git_url: >-
-          {{
-            vm_workload_field_content_git_repo_url
-            | regex_replace('^https://', 'https://x-access-token:' ~ vm_workload_field_content_git_repo_key ~ '@')
-            if (vm_workload_field_content_git_repo_key | default('') | length > 0)
-            else vm_workload_field_content_git_repo_url
-          }}
-
+    # The token goes in an HTTP auth header through environment config, not
+    # the URL, so it is not written to src/.git/config or task output.
     - name: Clone field content repo for Showroom
       ansible.builtin.git:
-        repo: "{{ _vm_workload_field_content_showroom_git_url }}"
+        repo: "{{ vm_workload_field_content_git_repo_url }}"
         dest: "{{ vm_workload_field_content_dir }}/src"
         version: "{{ vm_workload_field_content_git_repo_revision }}"
         force: true
       environment:
         GIT_TERMINAL_PROMPT: "0"
+        GIT_CONFIG_COUNT: "{{ '1' if (vm_workload_field_content_git_repo_key | default('') | length > 0) else '0' }}"
+        GIT_CONFIG_KEY_0: >-
+          http.{{ vm_workload_field_content_git_repo_url | regex_replace('^(https?://[^/]+).*$', '\1') }}/.extraheader
+        GIT_CONFIG_VALUE_0: >-
+          Authorization: Basic {{ ('x-access-token:' ~ vm_workload_field_content_git_repo_key | default('')) | b64encode }}
 
     - name: Set Showroom project directory within the repo
       ansible.builtin.set_fact:
@@ -78,5 +75,4 @@
           WARNING: Showroom content could not be staged from
           {{ vm_workload_field_content_git_repo_url }}
           ({{ vm_workload_field_content_git_repo_revision }}):
-          {{ ansible_failed_result.msg | default('unknown error')
-             | regex_replace('x-access-token:[^@]*@', 'x-access-token:REDACTED@') }}
+          {{ ansible_failed_result.msg | default('unknown error') }}

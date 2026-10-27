@@ -12,9 +12,15 @@ REPO="${GIT_REPO_URL:?GIT_REPO_URL is required}"
 REVISION="${GIT_REVISION:-main}"
 ENTRYPOINT="${PLAYBOOK_ENTRYPOINT:-playbooks/deploy.yml}"
 
+# Pass the token to git as an HTTP auth header through environment config,
+# not in the URL, so it never shows up in galaxy output or podman logs.
 if [[ -n "${GIT_TOKEN:-}" ]]; then
-  REPO="$(echo "${REPO}" | sed "s#https://#https://x-access-token:${GIT_TOKEN}@#")"
+  ORIGIN="$(echo "${REPO}" | sed -E 's#^(https?://[^/]+).*#\1#')"
+  export GIT_CONFIG_COUNT=1
+  export GIT_CONFIG_KEY_0="http.${ORIGIN}/.extraheader"
+  export GIT_CONFIG_VALUE_0="Authorization: Basic $(printf 'x-access-token:%s' "${GIT_TOKEN}" | base64 -w0)"
 fi
+export GIT_TERMINAL_PROMPT=0
 
 echo "=== Installing collection from ${GIT_REPO_URL} (${REVISION}) ==="
 ansible-galaxy collection install "git+${REPO},${REVISION}" -p "${COLLECTIONS}" --force
