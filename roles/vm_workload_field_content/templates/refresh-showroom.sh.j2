@@ -99,17 +99,21 @@ if [[ "${PULL}" == true ]]; then
 
   echo "=== Copying staged content to ${CONTENT_DIR} ==="
   find "${CONTENT_DIR}" -mindepth 1 -delete
-  tar -C "${DIR}/showroom-content" --exclude=.git -cf - . \
+  # Keep .git: Antora needs a git repo for the "url: ." content source.
+  tar -C "${DIR}/showroom-content" -cf - . \
     | tar -C "${CONTENT_DIR}" -xf -
 fi
 
 chown -R "${SHOWROOM_USER}:${SHOWROOM_USER}" "${CONTENT_DIR}"
 
 echo "=== Building Showroom ==="
-as_showroom podman start --attach antora-builder
-RC="$(as_showroom podman inspect --format '{% raw %}{{.State.ExitCode}}{% endraw %}' antora-builder)"
-if [[ "${RC}" != "0" ]]; then
-  echo "ERROR: Showroom build failed (exit ${RC}). Fix the content and run this again."
+# The antora image exits 0 even when Antora fails, so check its result line.
+LOG="$(mktemp)"
+trap 'rm -f "${LOG}"' EXIT
+if ! as_showroom podman start --attach antora-builder </dev/null | tee "${LOG}" \
+    || ! grep -q 'Antora build completed successfully' "${LOG}"; then
+  echo "ERROR: Showroom build failed. Read the errors above, fix the content, and run this again."
+  echo "Showroom still serves the last good build."
   exit 1
 fi
 
