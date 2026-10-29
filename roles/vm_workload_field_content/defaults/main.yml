@@ -36,5 +36,9 @@ vm_workload_field_content_running_delay: 10
 vm_workload_field_content_showroom_path: ""
 vm_workload_field_content_enable_showroom: false
 
+# Showroom refresh (refresh-showroom.sh). Must match vm_workload_showroom.
+vm_workload_field_content_showroom_user: "{{ showroom_user | default('showroom') }}"
+vm_workload_field_content_showroom_content_dir: "{{ showroom_user_content_dir | default('/opt/showroom/content') }}"
+
 # Passed through to the author's playbook as field_asset.enable_bastion_proxy
 vm_workload_field_content_enable_bastion_proxy: false
