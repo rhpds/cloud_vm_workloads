@@ -11,24 +11,16 @@ CONTENT_DIR="{{ vm_workload_field_content_showroom_content_dir }}"
 
 usage() {
   cat <<USAGE
-Usage: sudo $0 [--no-pull] [--help]
+Rebuild Showroom after you change its content.
 
-Rebuild Showroom. Restarting the showroom service does not pick up content
-changes, because Showroom is built once when the environment is ordered.
+  sudo ${0} [--no-pull]
 
-With no options:
-  Clone your repo again (same URL, revision, and access token as the order),
-  copy the Showroom content to ${CONTENT_DIR}, rebuild, and restart Showroom.
-  Use this after you push a fix to your repo.
-
-Options:
-  --no-pull   Do not clone. Rebuild from the files already in ${CONTENT_DIR}.
-              Use this after you edit those files directly on the bastion.
-              Changes made this way are replaced by the next run without
-              --no-pull.
-  -h, --help  Show this help.
-
-Showroom logs: sudo journalctl -u showroom
+  (no option)  Use after you push a fix to your repo.
+               Clones the repo again, then rebuilds Showroom.
+  --no-pull    Use after you edit files in ${CONTENT_DIR}.
+               Rebuilds Showroom from those files. The next run without
+               --no-pull replaces them with the repo content.
+  -h, --help   Show this help.
 USAGE
 }
 
