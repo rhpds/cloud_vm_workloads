@@ -1,0 +1,127 @@
+#!/bin/bash
+# Rebuild Showroom from the author's repo. vm_workload_showroom builds the
+# HTML once at provisioning; restarting the showroom service only serves the
+# old build. This script re-stages the content and runs the build again.
+set -euo pipefail
+
+DIR="{{ vm_workload_field_content_dir }}"
+SHOWROOM_PATH="{{ vm_workload_field_content_showroom_path | default('', true) }}"
+SHOWROOM_USER="{{ vm_workload_field_content_showroom_user }}"
+CONTENT_DIR="{{ vm_workload_field_content_showroom_content_dir }}"
+
+usage() {
+  cat <<USAGE
+Usage: sudo $0 [--no-pull] [--help]
+
+Rebuild Showroom. Restarting the showroom service does not pick up content
+changes, because Showroom is built once when the environment is ordered.
+
+With no options:
+  Clone your repo again (same URL, revision, and access token as the order),
+  copy the Showroom content to ${CONTENT_DIR}, rebuild, and restart Showroom.
+  Use this after you push a fix to your repo.
+
+Options:
+  --no-pull   Do not clone. Rebuild from the files already in ${CONTENT_DIR}.
+              Use this after you edit those files directly on the bastion.
+              Changes made this way are replaced by the next run without
+              --no-pull.
+  -h, --help  Show this help.
+
+Showroom logs: sudo journalctl -u showroom
+USAGE
+}
+
+PULL=true
+case "${1:-}" in
+  "") ;;
+  --no-pull) PULL=false ;;
+  -h|--help) usage; exit 0 ;;
+  *) usage; exit 2 ;;
+esac
+
+if [[ ${EUID} -ne 0 ]]; then
+  echo "ERROR: run as root (sudo $0)"
+  exit 1
+fi
+
+SHOWROOM_UID="$(id -u "${SHOWROOM_USER}")"
+as_showroom() {
+  runuser -u "${SHOWROOM_USER}" -- env XDG_RUNTIME_DIR="/run/user/${SHOWROOM_UID}" "$@"
+}
+
+if ! as_showroom podman container exists antora-builder; then
+  echo "ERROR: Showroom was never built on this bastion (no antora-builder container)."
+  echo "Check 'sudo journalctl -u showroom'. A new order is needed to deploy Showroom."
+  exit 1
+fi
+
+if [[ "${PULL}" == true ]]; then
+  # Read the runner's env file instead of sourcing it, so token characters
+  # are never interpreted by the shell.
+  while IFS='=' read -r key value; do
+    case "${key}" in
+      GIT_REPO_URL) REPO="${value}" ;;
+      GIT_REVISION) REVISION="${value}" ;;
+      GIT_TOKEN) GIT_TOKEN="${value}" ;;
+    esac
+  done < "${DIR}/env"
+  REPO="${REPO:?GIT_REPO_URL missing from ${DIR}/env}"
+  REVISION="${REVISION:-main}"
+
+  # Same as the runner: the token goes in an HTTP auth header through
+  # environment config, not in the URL, so it is not written to disk or output.
+  export GIT_TERMINAL_PROMPT=0
+  if [[ -n "${GIT_TOKEN:-}" ]]; then
+    ORIGIN="$(echo "${REPO}" | sed -E 's#^(https?://[^/]+).*#\1#')"
+    export GIT_CONFIG_COUNT=1
+    export GIT_CONFIG_KEY_0="http.${ORIGIN}/.extraheader"
+    export GIT_CONFIG_VALUE_0="Authorization: Basic $(printf 'x-access-token:%s' "${GIT_TOKEN}" | base64 -w0)"
+  fi
+
+  echo "=== Cloning ${REPO} (${REVISION}) ==="
+  TMP="$(mktemp -d "${DIR}/src.XXXXXX")"
+  trap 'rm -rf "${TMP}"' EXIT
+  git clone --quiet "${REPO}" "${TMP}"
+  git -C "${TMP}" checkout --quiet "origin/${REVISION}" 2>/dev/null \
+    || git -C "${TMP}" checkout --quiet "${REVISION}"
+
+  if [[ ! -d "${TMP}/${SHOWROOM_PATH}" ]]; then
+    echo "ERROR: Showroom path '${SHOWROOM_PATH}' was not found in ${REPO}"
+    exit 1
+  fi
+
+  rm -rf "${DIR}/src"
+  mv "${TMP}" "${DIR}/src"
+  trap - EXIT
+
+  echo "=== Staging Showroom content in ${DIR}/showroom-content ==="
+  rm -rf "${DIR}/showroom-content"
+  mkdir -p "${DIR}/showroom-content"
+  tar -C "${DIR}/src/${SHOWROOM_PATH}" --exclude=.git -cf - . \
+    | tar -C "${DIR}/showroom-content" -xf -
+  git -C "${DIR}/showroom-content" init --quiet
+  git -C "${DIR}/showroom-content" add -A
+  git -C "${DIR}/showroom-content" -c user.email=field-content@localhost \
+    -c user.name=field-content commit --quiet -m "showroom" --allow-empty
+
+  echo "=== Copying staged content to ${CONTENT_DIR} ==="
+  find "${CONTENT_DIR}" -mindepth 1 -delete
+  tar -C "${DIR}/showroom-content" --exclude=.git -cf - . \
+    | tar -C "${CONTENT_DIR}" -xf -
+fi
+
+chown -R "${SHOWROOM_USER}:${SHOWROOM_USER}" "${CONTENT_DIR}"
+
+echo "=== Building Showroom ==="
+as_showroom podman start --attach antora-builder
+RC="$(as_showroom podman inspect --format '{% raw %}{{.State.ExitCode}}{% endraw %}' antora-builder)"
+if [[ "${RC}" != "0" ]]; then
+  echo "ERROR: Showroom build failed (exit ${RC}). Fix the content and run this again."
+  exit 1
+fi
+
+echo "=== Restarting Showroom ==="
+systemctl restart showroom
+
+echo "=== Showroom refreshed ==="

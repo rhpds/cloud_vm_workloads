@@ -76,3 +76,11 @@
           {{ vm_workload_field_content_git_repo_url }}
           ({{ vm_workload_field_content_git_repo_revision }}):
           {{ ansible_failed_result.msg | default('unknown error') }}
+
+# Installed even when staging failed, so the author can fix the repo and
+# rebuild without a new order (as long as Showroom was built once).
+- name: Write Showroom refresh script
+  ansible.builtin.template:
+    src: refresh-showroom.sh.j2
+    dest: "{{ vm_workload_field_content_dir }}/refresh-showroom.sh"
+    mode: "0755"

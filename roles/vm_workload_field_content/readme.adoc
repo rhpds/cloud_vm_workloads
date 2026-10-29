@@ -7,12 +7,24 @@ Fire-and-forget runner for RHEL Field Asset.
 . Writes a platform inventory, extra-vars, and lab-user ssh config on the bastion
 . Optionally installs Nginx as a reverse proxy on ports 8080/8443
 . If a collection git repo was provided: pulls the EE, starts `field-content.service`, waits until the container **exists**
-. If Showroom is enabled: clones the repo and stages the Showroom project (repo root or `showroom_path`) as a local git repo
+. If Showroom is enabled: clones the repo and stages the Showroom project (repo root or `showroom_path`) as a local git repo, and installs the Showroom refresh script
 . Exits. Galaxy install and the author's playbook happen inside the container.
 
 Platform failures (EE pull, inventory, unit, container never created) fail the RHDP order.
 
 Author failures (malformed URL, 404 repo, bad token, bad collection, missing playbook or Showroom path, task errors) do **not**. The order completes so the author can log in and read the runner logs.
+
+== Showroom refresh
+
+`vm_workload_showroom` builds the Showroom HTML once at provisioning. Restarting `showroom.service` serves the old build. To rebuild after a content change:
+
+....
+sudo /opt/field-content/refresh-showroom.sh             # clone the repo again, then rebuild
+sudo /opt/field-content/refresh-showroom.sh --no-pull   # rebuild from files edited in /opt/showroom/content
+sudo /opt/field-content/refresh-showroom.sh --help
+....
+
+The script reads the repo, revision, and token from `/opt/field-content/env` and passes the token as an HTTP auth header, the same way as the runner. It re-stages the content, runs the existing `antora-builder` container as the showroom user, and restarts `showroom.service`. It needs a Showroom that was built at least once.
 
 == Bastion proxy
 
