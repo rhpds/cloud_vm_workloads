@@ -1,0 +1,33 @@
+---
+# If your workload needs customization options provide variables to be used.
+#
+# Variable names must be prefixed by the role name, e.g. "<role name>_<variable>".
+#
+# Therefore because this example workload is called "ns_example" the variables
+# must be named "ns_example_variable".
+#
+# You can override the defaults as parameters to the Ansible run that deploys
+# your workload via the AgnosticV configuration.
+
+cnv_instances: []
+
+instances: "{{ cnv_instances }}"
+
+openshift_cnv_namespace: "{{ sandbox_openshift_namespace }}"
+
+# Naming of instances
+openshift_cnv_instance_numeration: '%d'
+
+# Delete device retry
+openshift_cnv_delete_retries: 20
+openshift_cnv_delete_delay: 60
+
+# Retries and delay variable
+openshift_cnv_retries: 6
+openshift_cnv_delay: 10
+
+# Remove X-Frame-Options header (to iframe apps, for example in showroom)
+openshift_cnv_route_remove_x_frame_options_header: false
+
+# Use host.guid.domain
+openshift_cnv_legacy_routes: false

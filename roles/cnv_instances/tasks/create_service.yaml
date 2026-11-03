@@ -1,0 +1,103 @@
+---
+- name: Create services for instance "{{ _instance.name }}"
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: "{{ service.name }}"
+        namespace: "{{ openshift_cnv_namespace }}"
+      spec: "{{ spec | from_yaml }}"
+  vars:
+    spec: |
+        ports:
+          {{ service.ports }}
+        selector:
+          vm.cnv.io/name: "{{ _instance.name }}"
+        type: {{ service.type | default('ClusterIP') }}
+  register: r_service
+  until: r_service is success
+  retries: "{{ openshift_cnv_retries }}"
+  delay: "{{ openshift_cnv_delay }}"
+
+- name: Add passthrough service to the nested OCP cluster
+  when: cnv_instances_passthrough_namespace | default("") != ""
+  module_defaults:
+    group/k8s:
+      host: "{{ openshift_api_url }}"
+      api_key: "{{ openshift_cluster_admin_token }}"
+      validate_certs: false
+  block:
+    - name: Add Service
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: "{{ service.name }}"
+            namespace: "{{ cnv_instances_passthrough_namespace }}"
+          spec: "{{ spec | from_yaml }}"
+      vars:
+        spec: |
+          ports:
+            {{ service.ports }}
+          type: {{ service.type | default('ClusterIP') }}
+    - name: Add EndpointSlice
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: discovery.k8s.io/v1
+          kind: EndpointSlice
+          metadata:
+            name: "{{ service.name }}"
+            namespace: "{{ cnv_instances_passthrough_namespace }}"
+            labels:
+              kubernetes.io/service-name: "{{ service.name }}"
+          addressType: IPv4
+          endpoints:
+            - addresses:
+                - "{{ r_service.result.spec.clusterIP }}"
+              conditions:
+                ready: true
+          ports: "{{ service.ports }}"
+
+- name: Wait for the LoadBalancer value
+  register: svc_fip
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Service
+    name: "{{ service.name }}"
+    namespace: "{{ openshift_cnv_namespace }}"
+  until: svc_fip.resources[0].status.loadBalancer.ingress[0].ip | default('') != ''
+  retries: 10
+  delay: 2
+  when:
+    - service.type | default('ClusterIP') == "LoadBalancer"
+
+- name: If exist set the external IP for the instance and the ports
+  set_fact:
+    _instance_external_ip: "{{ svc_fip.resources[0].status.loadBalancer.ingress[0].ip }}"
+    _instance_external_ports: "{{ service.ports | map(attribute='port') | join(',') }}"
+  when:
+    - service.type | default('ClusterIP') == "LoadBalancer"
+
+- name: Add external_ip and external_ports to the instance
+  when:
+    - service.type | default('ClusterIP') == "LoadBalancer"
+  kubernetes.core.k8s:
+    state: patched
+    api_version: v1
+    kind: VirtualMachine
+    name: "{{ _instance.name }}"
+    definition:
+      apiVersion: v1
+      kind: VirtualMachine
+      metadata:
+        name: "{{ _instance.name }}"
+        namespace: "{{ openshift_cnv_namespace }}"
+        annotations:
+          external_ip: "{{ _instance_external_ip }}"
+          external_ports: "{{ _instance_external_ports }}"
+  register: r_service
+  until: r_service is success
+  retries: "{{ openshift_cnv_retries }}"
+  delay: "{{ openshift_cnv_delay }}"
